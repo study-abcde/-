@@ -78,7 +78,7 @@ function finish(){G.go=2;const u=MODE==='ultra',v=u?G.lines:G.time;if(!G.ud&&(!b
 function win(){const ok=MODE==='sprint'?G.lines>=40:MODE==='cheese'?G.gb<=0:false;if(ok)finish();return ok}
 function tsp(){if(P.t!=='T'||!P.rot)return 0;const c=(i,j)=>{const x=P.x+i,y=P.y+j;return x<0||x>=W||y>=H||(y>=0&&G.b[y][x])};const cs=[c(0,0),c(2,0),c(0,2),c(2,2)];if(cs.filter(Boolean).length<3)return 0;const F=[[0,1],[1,3],[2,3],[0,2]][P.r];return F.every(i=>cs[i])||P.kk===4?2:1}
 function clr(ts,n){let m='';if(!n){G.at=0;G.cmb=-1;if(ts)m='T-SPIN'+(ts===1?' MINI':'')}else{G.cmb++;const hard=n===4||ts>0;G.at=atk(n,ts,hard&&G.b2b>0,G.cmb);m=ts?'T-SPIN'+(ts===1?' MINI ':' ')+['','SINGLE','DOUBLE','TRIPLE'][n]:n===4?'TETRIS':'';if(hard){if(G.b2b>0)m+=' B2B';G.b2b++}else G.b2b=0;if(G.cmb>0)m+=(m?' ':'')+G.cmb+' REN'}if(m){G.msg=m.trim();G.mt=1500}}
-function lock(){G.us.push(snap());if(G.us.length>3000)G.us.shift();const ts=tsp();ROT[P.t][P.r].forEach((row,j)=>row.forEach((v,i)=>{if(v)G.b[P.y+j][P.x+i]=P.c||P.t}));G.pcs++;G.gb-=G.b.filter(r=>r.every(v=>v)&&r.includes('G')).length;G.b=G.b.filter(r=>r.some(v=>!v));const n=H-G.b.length;G.lines+=n;clr(ts,n);while(G.b.length<H)G.b.unshift(Array(W).fill(0));if(G.b.every(r=>r.every(v=>!v))){G.pc++;G.pcAt=G.pcs;G.fl=1500;if(VS())G.at=10}if(VS())vsAtk(n);if(MODE==='pc'&&G.pcs-G.pcAt>=10){G.go=1;return}G.can=true;
+function lock(){G.us.push(snap());if(G.us.length>3000)G.us.shift();const ts=tsp();ROT[P.t][P.r].forEach((row,j)=>row.forEach((v,i)=>{if(v)G.b[P.y+j][P.x+i]=P.c||P.t}));G.pcs++;G.gb-=G.b.filter(r=>r.every(v=>v)&&r.includes('G')).length;G.b=G.b.filter(r=>r.some(v=>!v));const n=H-G.b.length;G.lines+=n;clr(ts,n);while(G.b.length<H)G.b.unshift(Array(W).fill(0));if(G.b.every(r=>r.every(v=>!v))){G.pc++;G.pcAt=G.pcs;G.fl=1500;if(VS())G.at=10}if(VS())vsAtk(n);if(MODE!=='practice'&&!G.go&&fatal(G.b))G.go=1;if(MODE==='pc'&&G.pcs-G.pcAt>=10){G.go=1;return}G.can=true;
  if(win())return;spawn()}
 const CT=[0,0,1,1,2,2,3,3,4,4,4,5];
 function atk(n,ts,bb,cb){if(!n)return 0;let a=ts===2?[0,2,4,6][n]:ts===1?[0,1,2,2][n]:[0,0,1,2,4][n];if(bb)a++;return a+CT[Math.min(cb,11)]}
@@ -90,7 +90,8 @@ function undo(){const s=G.us.pop();if(!s)return;const lost=G.ap-s.ap;if(lost>0)G
 function fB(b,t,r,x,y){return ROT[t][r].every((row,j)=>row.every((v,i)=>!v||(x+i>=0&&x+i<W&&y+j>=0&&y+j<H&&!b[y+j][x+i])))}
 const kq=()=>G.q.length%7===6?G.q.slice(0,6):G.q.slice(0,5);/* 7ミノ1巡の6個目が確定している時は先読みに含める */
 function bag(r){const b=[...'IOTSZJL'];for(let i=6;i>0;i--){const j=r()*(i+1)|0;[b[i],b[j]]=[b[j],b[i]]}return b}
-function cpuTick(){if(O.go||--O.t>0)return;O.t=[1300,700,420,Math.round(1e4/(S.pps10||45))][(S.lv||2)-1]||700;if((S.lv||2)===4)cpuMoveTS();else cpuMove()}
+const fatal=b=>b[1][3]||b[1][4]||b[1][5]||b[1][6];/* 致命判定(ぷよテト2と同じ): 真ん中4列の21段目にミノが残ったら負け */
+function cpuTick(){if(O.go||--O.t>0)return;const pp=Math.round(1e4/(S.pps10||45));O.t=[1300,700,420,pp,pp][(S.lv||2)-1]||700;if((S.lv||2)===5)cpuMoveAm();else if((S.lv||2)===4)cpuMoveTS();else cpuMove();if(!O.go&&fatal(O.b))O.go=1}
 function cpuMove(){if(!O.q.length)O.q.push(...bag(cr));const t=O.q.shift();if(!fB(O.b,t,0,t==='O'?4:3,1)){O.go=1;return}
  let best=-1e9,bp;for(let r=0;r<4;r++)for(let x=-2;x<W;x++){if(!fB(O.b,t,r,x,0))continue;let y=0;while(fB(O.b,t,r,x,y+1))y++;
   const b=O.b.map(a=>a.slice());ROT[t][r].forEach((row,j)=>row.forEach((v,i)=>v&&(b[y+j][x+i]=t)));
@@ -216,6 +217,87 @@ function tCost(b,v,c,h,q,st){if(--st.n<0)return 1e9;const R=Object.keys(v.p).fil
  if(h){if(R.includes(h)){const k1=pcost(b,v,h);if(k1<1e9)best=Math.min(best,k1+tCost(putP(b,v,h),v,q[0],c,q.slice(1),st))}}
  else if(q.length){const n=q[0];if(R.includes(n)){const k1=pcost(b,v,n);if(k1<1e9)best=Math.min(best,k1+tCost(putP(b,v,n),v,q[1],c,q.slice(2),st))}}
  st.m.set(k,best);return best}
+const GMD={"s1":{"S":[[0,3],[0,2],[1,2],[1,1]],"I":[[7,3],[7,2],[7,1],[7,0]],"T":[[6,2],[5,1],[6,1],[6,0]],"J":[[0,1],[0,0],[1,0],[2,0]],"Z":[[3,1],[4,1],[4,0],[5,0]],"O":[[8,1],[9,1],[8,0],[9,0]]},"s2":[{"n":"L→O","g":0,"p":{"I":[[0,7],[0,6],[0,5],[0,4]],"O":[[8,7],[9,7],[8,6],[9,6]],"J":[[1,5],[2,5],[1,4],[1,3]],"L":[[8,5],[9,5],[8,4],[9,4],[8,3],[9,3],[8,2],[9,2]],"S":[[6,4],[7,4],[5,3],[6,3]],"Z":[[3,3],[4,3],[4,2],[5,2]]}},{"n":"省略","g":0,"p":{"I":[[0,7],[0,6],[0,5],[0,4]],"L":[[8,7],[9,7],[8,6],[9,6],[8,5],[9,5],[8,4],[9,4]],"J":[[1,5],[2,5],[1,4],[1,3]],"S":[[6,4],[7,4],[5,3],[6,3]],"Z":[[3,3],[4,3],[4,2],[5,2]],"O":[[8,3],[9,3],[8,2],[9,2]]}},{"n":"J→O","g":1,"p":{"I":[[0,7],[0,6],[0,5],[0,4]],"O":[[1,7],[2,7],[1,6],[2,6]],"J":[[1,5],[2,5],[1,4],[1,3]],"L":[[8,5],[9,5],[8,4],[9,4],[8,3],[9,3],[8,2],[9,2]],"S":[[6,4],[7,4],[5,3],[6,3]],"Z":[[3,3],[4,3],[4,2],[5,2]]}},{"n":"O→L","g":2,"p":{"L":[[7,9],[7,8],[7,7],[8,7],[8,4],[8,3],[8,2],[9,2]],"O":[[7,6],[8,6],[7,5],[8,5]],"I":[[9,6],[9,5],[9,4],[9,3]],"J":[[1,5],[2,5],[1,4],[1,3]],"S":[[6,4],[7,4],[5,3],[6,3]],"Z":[[3,3],[4,3],[4,2],[5,2]]}}]};
+/* ===== あめみやたいよう型CPU（ガムシロ積み → TST → 中開け4列REN／掘り） =====
+ GMD: fumen由来のガムシロ積み。s1=1巡目(Lホールド) / s2=2巡目(L→O・省略・J→O・O→L の優先順)。[x,r] は r=下から数えた段。
+ 同じ種類が2つある色(L)は、8マスの領域に2つ置く。左右反転は自動で作る。 */
+const GM=(()=>{
+ const M={S:'Z',Z:'S',J:'L',L:'J',I:'I',O:'O',T:'T'},yy=r=>H-1-r;let id=0;
+ const mkv=(n,st,p,base,mir)=>{const f=c=>c.map(([x,r])=>[mir?9-x:x,yy(r)]),P={},cnt={},pl={};
+  for(const t in p){const tt=mir?M[t]:t;P[tt]=f(p[t]);cnt[tt]=p[t].length/4}
+  for(const t in P){const tg=new Set(P[t].map(a=>a.join()));pl[t]=[];for(let r=0;r<4;r++)for(let x=-2;x<W;x++)for(let y=-2;y<H;y++){const cs=[];ROT[t][r].forEach((row,j)=>row.forEach((c,i)=>c&&cs.push((x+i)+','+(y+j))));if(cs.length===4&&cs.every(k=>tg.has(k)))pl[t].push({r,x,y})}}
+  const rg={};for(const t in P)P[t].forEach(a=>rg[a.join()]=t);
+  return{id:id++,n:(mir?'反転 ':'')+n,st,cnt,pl,rg,bs:new Set(f(base).map(a=>a.join())),carry:st===1?'IJLOSZT'.split('').find(t=>!P[t]):'T'}};
+ const base=Object.values(GMD.s1).flat(),S1=[],S2=[];
+ for(const mir of[0,1])S1.push(mkv('1巡目',1,GMD.s1,[],mir));
+ for(const o of GMD.s2)for(const mir of[0,1])S2.push(mkv(o.n,2,o.p,base,mir));
+ const key=(x,y)=>x+','+y;
+ const ok=(b,v)=>{for(const k of v.bs){const[x,y]=k.split(',');if(!b[y][x])return false}
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=b[y][x];if(!c)continue;const k=key(x,y);if(v.bs.has(k))continue;if(v.rg[k]!==c)return false}return true};
+ const remOf=(b,v)=>{const r={};for(const t in v.cnt)r[t]=v.cnt[t];for(const k in v.rg){const[x,y]=k.split(',');if(b[y][x]===v.rg[k]&&!v.bs.has(k))r[v.rg[k]]-=.25}return r};
+ const left=(b,v)=>{const r=remOf(b,v);let n=0;for(const t in r)n+=r[t];return Math.round(n*4)};
+ const cand=(b,v,t)=>(v.pl[t]||[]).filter(p=>fB(b,t,p.r,p.x,p.y)&&!fB(b,t,p.r,p.x,p.y+1)&&reach(b,t).has(p.r*10000+(p.x+5)*100+p.y));
+ const put=(b,t,p)=>{const nb=b.map(a=>a.slice());ROT[t][p.r].forEach((row,j)=>row.forEach((c,i)=>c&&(nb[p.y+j][p.x+i]=t)));return nb};
+ const sol=(b,v,rem,c,h,q,st,need)=>{if(--st.n<0)return false;let l=0;for(const t in rem)l+=rem[t];if(l<.5)return need(c,h);if(!c)return false;
+  const k=v.id+b.slice(-12).map(r=>r.map(x=>x?1:0).join('')).join('')+c+(h||'-')+q.join('');if(st.m.has(k))return false;st.m.add(k);
+  const tryP=(t,nc,nh,nq)=>{if(!(rem[t]>.5))return false;for(const p of cand(b,v,t)){rem[t]--;const o=sol(put(b,t,p),v,rem,nc,nh,nq,st,need);rem[t]++;if(o)return true}return false};
+  if(tryP(c,q[0],h,q.slice(1)))return true;
+  if(h){if(h!==c&&tryP(h,q[0],c,q.slice(1)))return true}else if(q.length){const n=q[0];if(n!==c&&tryP(n,q[1],c,q.slice(2)))return true}
+  return false};
+ /* 今のミノ t を置く手を探す。戻り値 {u:置くミノ,p:位置,h:0|1|2(1=ホールドと交換,2=ホールドが空なのでNEXTを使う)} */
+ const plan=(b,v,t,hold,q0)=>{const q=q0.slice(0,9),st={n:6000,m:new Set()},rem=remOf(b,v),need=(c,h)=>v.st===1?(c===v.carry||h===v.carry):(c==='T'||h==='T');
+  if(rem[t]>.5)for(const p of cand(b,v,t)){rem[t]--;const o=sol(put(b,t,p),v,rem,q[0],hold,q.slice(1),st,need);rem[t]++;if(o)return{u:t,p,h:0}}
+  const hh=hold||q[0];if(hh&&hh!==t&&rem[hh]>.5)for(const p of cand(b,v,hh)){rem[hh]--;const o=sol(put(b,hh,p),v,rem,hold?q[0]:q[1],t,hold?q.slice(1):q.slice(2),st,need);rem[hh]++;if(o)return{u:hh,p,h:hold?1:2}}
+  return null};
+ return{S1,S2,ok,left,plan,put}})();
+const amH=k=>{const h=Array(W).fill(0),ho=Array(W).fill(0);for(let c=0;c<W;c++){let j=0;while(j<H&&!k[j][c])j++;h[c]=H-j;for(;j<H;j++)if(!k[j][c])ho[c]++}return[h,ho]};
+const amSum=a=>a.reduce((x,y)=>x+y,0);
+const amP=(k,mb)=>{let p=0;for(let y=H-1-mb;y>=0;y--){const r=k[y];if(r[0]&&r[1]&&r[2]&&r[7]&&r[8]&&r[9]&&r[0]!=='G'&&r[9]!=='G')p++;else break}return p};
+function amMb(g){const[h]=amH(O.b);g.mb=Math.max(h[3],h[4],h[5],h[6])}
+function amApply(n,ts){let a=0;if(n){O.cmb++;const hd=n===4||ts>0;a=atk(n,ts,hd&&O.b2b>0,O.cmb);if(hd)O.b2b++;else O.b2b=0;if(ts)O.tsc=(O.tsc||0)+1;if(O.b.every(r=>r.every(v=>!v)))a=10}else O.cmb=-1;
+ const c=Math.min(a,O.inc);O.inc-=c;a-=c;if(a>0)G.inc+=a;if(!n&&O.inc>0){if(addG(O.b,O.inc))O.go=1;O.inc=0}}
+function amEval(mode,g){
+ if(mode==='dig')return(k,n,ts)=>{let gc=0;for(const r of k)for(const v of r)if(v==='G')gc++;return cpuEv(k,n,ts,true)-.45*gc};
+ if(mode==='fire')return(k,n)=>{const[h,ho]=amH(k);return(n?50+12*n:-80)-9*amSum(ho)-2*(Math.abs(h[4]-h[3])+Math.abs(h[5]-h[4])+Math.abs(h[6]-h[5]))-.5*Math.max(...h)};
+ return(k,n)=>{const[h,ho]=amH(k);let sb=0;for(const c of[1,2,8,9])sb+=Math.abs(h[c]-h[c-1]);let mo=0;for(let c=3;c<=6;c++)mo+=Math.max(0,h[c]-g.mb);
+  const L=(h[0]+h[1]+h[2])/3,R=(h[7]+h[8]+h[9])/3;return 4*Math.min(amP(k,g.mb),20)-20*amSum(ho)-2.5*sb-10*mo-2*Math.abs(L-R)-5*Math.max(0,Math.max(...h)-19)+n*4}}
+function amPick(t,evf){const opts=[{t,h:0}];if(O.hold){if(O.hold!==t)opts.push({t:O.hold,h:1})}else if(O.q.length&&O.q[0]!==t)opts.push({t:O.q[0],h:2});
+ let best=null;for(const o of opts){const nx=o.h===2?O.q[1]:O.q[0],c1=cpuCands(O.b,o.t);for(const c of c1)c.sc=evf(c.k,c.n,c.ts);c1.sort((a,b)=>b.sc-a.sc);
+  for(const c of c1.slice(0,6)){let b2=-1e9;if(nx)for(const d of cpuCands(c.k,nx)){const v=evf(d.k,d.n,d.ts);if(v>b2)b2=v}const tot=c.sc+(b2>-1e9?b2*.8:-40)-(o.h?.5:0);if(!best||tot>best.tot)best={tot,c,h:o.h}}}
+ return best}
+function amBeam(t,K,D){let beam=[{b:O.b,cur:t,hold:O.hold,qi:0,sc:0,first:null}],best=null;
+ for(let d=0;d<D;d++){const nx=[];
+  for(const s of beam){const opts=[{u:s.cur,nh:s.hold,cur:O.q[s.qi],qi:s.qi+1,h:0}];
+   if(s.hold){if(s.hold!==s.cur)opts.push({u:s.hold,nh:s.cur,cur:O.q[s.qi],qi:s.qi+1,h:1})}else if(O.q[s.qi]&&O.q[s.qi]!==s.cur)opts.push({u:O.q[s.qi],nh:s.cur,cur:O.q[s.qi+1],qi:s.qi+2,h:2});
+   for(const o of opts){if(!o.u)continue;for(const c of cpuCands(s.b,o.u)){if(!c.n)continue;const[h,ho]=amH(c.k);
+     const sc=s.sc+50+10*c.n-8*amSum(ho)-2*(Math.abs(h[4]-h[3])+Math.abs(h[5]-h[4])+Math.abs(h[6]-h[5]))-.3*Math.max(...h)-(o.h?.5:0);
+     nx.push({b:c.k,cur:o.cur,hold:o.nh,qi:o.qi,sc,first:s.first||{c,h:o.h}})}}}
+  if(!nx.length)break;nx.sort((a,b)=>b.sc-a.sc);beam=nx.slice(0,K);if(!best||beam[0].sc>best.sc)best=beam[0]}
+ return best&&best.first}
+function amBeamB(t,evf,K,D){let beam=[{b:O.b,cur:t,hold:O.hold,qi:0,sc:0,first:null}],best=null;
+ for(let d=0;d<D;d++){const nx=[];
+  for(const s of beam){if(!s.cur)continue;const opts=[{u:s.cur,nh:s.hold,cur:O.q[s.qi],qi:s.qi+1,h:0}];
+   if(s.hold){if(s.hold!==s.cur)opts.push({u:s.hold,nh:s.cur,cur:O.q[s.qi],qi:s.qi+1,h:1})}else if(O.q[s.qi]&&O.q[s.qi]!==s.cur)opts.push({u:O.q[s.qi],nh:s.cur,cur:O.q[s.qi+1],qi:s.qi+2,h:2});
+   for(const o of opts){if(!o.u)continue;for(const c of cpuCands(s.b,o.u)){const sc=evf(c.k,c.n,c.ts)-(o.h?.5:0);nx.push({b:c.k,cur:o.cur,hold:o.nh,qi:o.qi,sc,first:s.first||{c,h:o.h}})}}}
+  if(!nx.length)break;nx.sort((a,b)=>b.sc-a.sc);beam=nx.slice(0,K);best=beam[0]}
+ return best&&best.first}
+function cpuMoveAm(){while(O.q.length<10)O.q.push(...bag(cr));let t=O.q.shift();if(!fB(O.b,t,0,t==='O'?4:3,1)){O.go=1;return}
+ const g=O.gm||(O.gm={ph:1,fire:0,mb:0,th:17,wd:0});const useH=h=>{if(h===1)O.hold=t;else if(h===2){O.hold=t;O.q.shift()}};
+ if(g.ph<=2&&(O.inc>0||dirty(O.b)))g.ph=4;
+ for(let lp=0;lp<2&&g.ph<=2;lp++){const vs=(g.ph===1?GM.S1:GM.S2).filter(v=>GM.ok(O.b,v));
+  if(vs.some(v=>GM.left(O.b,v)===0)){if(g.ph===1){g.ph=2;continue}g.ph=3;break}
+  let pk=null,pv=null;for(const v of vs){pk=GM.plan(O.b,v,t,O.hold,O.q);if(pk){pv=v;break}}
+  if(pk){useH(pk.h);O.b=GM.put(O.b,pk.u,pk.p);g.tpl=pv.n;amApply(0,0);return}
+  g.ph=4;break}
+ if(g.ph===3){g.ph=4;if(O.hold==='T'||t==='T'){if(t!=='T'){O.hold=t;t='T'}if(tstMove()){amMb(g);return}}}
+ if(g.ph===4&&!g.init){g.init=1;amMb(g)}
+ let mode;if(dirty(O.b)){mode='dig';g.fire=0;g.wd=1}
+ else{if(g.wd){g.wd=0;amMb(g)}const[h]=amH(O.b),L=(h[0]+h[1]+h[2])/3,R=(h[7]+h[8]+h[9])/3,sh=amP(O.b,g.mb);
+  if(!g.fire&&(sh>=g.th||(O.inc>0&&sh>=4)||Math.max(...h)>=19))g.fire=1;mode=g.fire?'fire':'build'}
+ let bp=null;if(mode==='fire'){const f=amBeam(t,10,6);if(f)bp={c:f.c,h:f.h}}if(!bp){const ev=amEval(mode,g),f=mode==='build'?amBeamB(t,ev,8,4):null;bp=f?{c:f.c,h:f.h}:amPick(t,ev)}if(!bp){O.go=1;return}
+ if(bp.h===1){const o=O.hold;O.hold=t;t=o}else if(bp.h===2){O.hold=t;O.q.shift()}
+ O.b=bp.c.k;amApply(bp.c.n,bp.c.ts);if(mode==='fire'&&!bp.c.n){g.fire=0;amMb(g)}}
+
 let TA='off',TPK='',TPR={c:[],w:''};try{TA=localStorage.getItem('stack.ta')||'off'}catch(e){}
 const taK=[['H','はちみつ砲'],['M','迷走砲'],['TZ','T残し積み'],...[...new Set(OPN.filter(o=>!o.m).map(o=>o.k).filter(Boolean))].map(k=>['Q:'+k,({Okey:'Okey Spin',Satsuki:'皐月積み'})[k]||k])],taKey=v=>v.f==='Q'?(v.m||'Q:'+v.k):v.f,taEn=()=>new Set(TA==='off'||!TA?[]:TA==='Q'?taK.filter(a=>a[0][0]==='Q').map(a=>a[0]):TA.split(','));/* 補助に使うテンプレ(複数選択)。メニューの上にあるものほど同条件なら優先 */
 /* ===== DPC(3巡パフェ後) と 迷走砲/はちみつ砲のパフェ(T-spin→残りのミノ) ===== */
@@ -463,8 +545,8 @@ document.getElementById('pr').onclick=()=>resetPad({...PD,...UD});
 document.getElementById('pf').onclick=()=>{UD=null;try{localStorage.removeItem('stack.pad.def')}catch(e){}resetPad(PD)};
 document.getElementById('pd').onclick=e=>{UD=JSON.parse(JSON.stringify(PL));try{localStorage.setItem('stack.pad.def',JSON.stringify(UD))}catch(x){}const b=e.target;b.textContent='保存しました';setTimeout(()=>b.textContent='今の配置を初期配置に',1200)};
 document.getElementById('r').onclick=e=>{if(REP)stopReplay();else newGame();e.target.blur()};
-const defs=[['das','DAS',0,300],['arr','ARR',0,100],['sdf','SDF',5,41],['pps10','最強PPS',10,100]],st=document.getElementById('set');
-st.innerHTML=defs.map(([k,n,a,b])=>`<label>${n}<input type="range" min="${a}" max="${b}" value="${S[k]}" data-k="${k}"><output></output></label>`).join('')+'<label>重力<select data-k="grav">'+[[0,'なし'],[1000,'1000 ms/行'],[500,'500 ms/行'],[200,'200 ms/行'],[50,'50 ms/行']].map(([v,n])=>`<option value="${v}"${S.grav===v?' selected':''}>${n}</option>`).join('')+'</select></label><label>CPU<select data-k="lv">'+[[1,'弱い'],[2,'普通'],[3,'強い'],[4,'最強']].map(([v,n])=>`<option value="${v}"${(S.lv||2)===v?' selected':''}>${n}</option>`).join('')+'</select></label>';
+const defs=[['das','DAS',0,300],['arr','ARR',0,100],['sdf','SDF',5,41],['pps10','最強/あめみやPPS',10,100]],st=document.getElementById('set');
+st.innerHTML=defs.map(([k,n,a,b])=>`<label>${n}<input type="range" min="${a}" max="${b}" value="${S[k]}" data-k="${k}"><output></output></label>`).join('')+'<label>重力<select data-k="grav">'+[[0,'なし'],[1000,'1000 ms/行'],[500,'500 ms/行'],[200,'200 ms/行'],[50,'50 ms/行']].map(([v,n])=>`<option value="${v}"${S.grav===v?' selected':''}>${n}</option>`).join('')+'</select></label><label>CPU<select data-k="lv">'+[[1,'弱い'],[2,'普通'],[3,'強い'],[4,'最強'],[5,'あめみや']].map(([v,n])=>`<option value="${v}"${(S.lv||2)===v?' selected':''}>${n}</option>`).join('')+'</select></label>';
 const showV=()=>st.querySelectorAll('input').forEach(i=>{const k=i.dataset.k,v=+i.value;i.nextElementSibling.textContent=k==='pps10'?(v/10).toFixed(1)+' PPS':k==='sdf'&&v>=41?'∞':i.value+(k==='sdf'?'x':' ms')});
 showV();st.addEventListener('input',e=>{S[e.target.dataset.k]=+e.target.value;save();showV();if(!REP&&!G.go)RC.ev.push({t:G.tk,k:'S',v:{...S}})});st.addEventListener('change',e=>e.target.blur());
 const lr=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
