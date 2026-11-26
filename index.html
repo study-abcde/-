@@ -358,7 +358,10 @@ function fPl(t,cells){const k=t+cells.map(c=>c.join()).join(';');let v=FPL.get(k
  FPL.set(k,v);return v}
 function fPc(F,pm,i){const s=fSt(F,pm),p=F.ps[i];if(p.need.some(g=>!s.cl.includes(g)))return 1e9;let best=1e9;
  for(const q of fPl(p.t,fRc(s,p))){if(!fB(s.b,p.t,q.r,q.x,q.y)||fB(s.b,p.t,q.r,q.x,q.y+1))continue;if(!p.sp&&!reach(s.b,p.t).has(q.r*10000+(q.x+5)*100+q.y))continue;let hd=true;for(let yy=0;yy<=q.y;yy++)if(!fB(s.b,p.t,q.r,q.x,yy)){hd=false;break}best=Math.min(best,hd||p.sp?0:1)}return best}
-function dF(F,pm,c,h,q,st){if(--st.n<0)return 1e9;if(pm===(1<<F.ps.length)-1)return 0;if(!c)return 0;
+function dF(F,pm,c,h,q,st){if(--st.n<0)return 1e9;if(pm===(1<<F.ps.length)-1)return 0;
+ if(!c){/* 見えているミノを使い切った。残りの形がホールド中のミノ1つだけなら、それが今の盤面に置けるかを確かめる(置けないなら組めない) */
+  if(h){let rm=-1,n=0;for(let i=0;i<F.ps.length;i++)if(!(pm>>i&1)){n++;rm=i}if(n===1&&F.ps[rm].t===h&&!F.ps[rm].sp){const k0=fPc(F,pm,rm);return k0>=1e9?1e9:k0}}
+  return 0}
  const k=F.id+'_'+pm+c+h+q.join('');if(st.m.has(k))return st.m.get(k);st.m.set(k,1e9);let best=1e9;
  const tr=(t,nc,nh,nq)=>{for(let i=0;i<F.ps.length;i++){if(pm>>i&1||F.ps[i].t!==t)continue;if(F.ps[i].sp&&((1<<F.ps.length)-1&~(pm|1<<i)))continue;const k0=fPc(F,pm,i);if(k0>=1e9)continue;const v=k0+dF(F,pm|1<<i,nc,nh,nq,st);if(v<best)best=v}};
  tr(c,q[0],h,q.slice(1));
@@ -501,19 +504,24 @@ PC7D.push(
  for(const[ch,cs]of m){const T=({K:'J',M:'L',N:'O',R:'S',U:'T',Y:'Z',H:'I'})[ch.toUpperCase()]||ch.toUpperCase();/* 7回目の場合分け記号: k=J m=L n=O r=S u=T y=Z h=I(早く来るミノ) */if(cs.length===4){pc[T+(n++)]=cs;continue}const rest=cs.slice();while(rest.length){const comp=[rest.shift()];for(let i=0;i<comp.length;i++)for(let k=rest.length-1;k>=0;k--)if(Math.abs(rest[k][0]-comp[i][0])+Math.abs(rest[k][1]-comp[i][1])===1)comp.push(...rest.splice(k,1));pc[T+(n++)]=comp}}return pc};
  for(const[D,sg]of[[PC5D,5],[PC6D,6],[PC7D,7]])for(const mir of[0,1])for(const[nm,r,g,gp]of D){const F=mkF([],parse(g),mir);F.nm=nm+(mir?' 反転':'');if(sg===5){const mm=t=>t==='J'?'L':t==='L'?'J':t==='S'?'Z':t==='Z'?'S':t,al=((nm.match(/([A-Z]{2}(?:\/[A-Z]{2})*)繰越/)||[])[1]||'').split('/').filter(Boolean);F.u5=new Set(al.map(a=>[...a].map(t=>mir?mm(t):t).sort().join('')))}/* 5回目: 繰越2ミノの組(反転形は左右入れ替え) */F.pr=r;F.rt=r-(gp?.5:0);F.gp=gp||'';/* 場合分けの一部の形は、固定で100%の形より少しだけ後回し */F.k=''+sg;F.st=sg;PC1.L.push(F)}})();
 /* 連パフェ1回目のフィル: 盤面(下4段)・ホールド・ネクストから全消しできる置き方を探索。2=確定 1=ネクスト不足で未確定 0=不可 */
-const PF={m:new Map(),lc:new Map(),rk:'',rr:null,n:0,ab:0,lim:200000};
+const PFTL=8000,PF={m:new Map(),lc:new Map(),rk:'',rr:null,n:0,ab:0,lim:200000};
 const FO=(()=>{const o={};for(const t in SH)o[t]=ROT[t].map(m=>{const c=[];m.forEach((row,j)=>row.forEach((v,i)=>v&&c.push([i,j])));return c});return o})();
 const pfFit=(R,t,r,x,y)=>{for(const[i,j]of FO[t][r]){const X=x+i,Y=y+j;if(X<0||X>=W||Y<0||Y>=H||(R[Y]>>X&1))return false}return true};
 const PX=(()=>{const o={};for(const t in SH)o[t]=FO[t].map(c=>({i:c.map(a=>a[0]),j:c.map(a=>a[1])}));return o})();
 const pfF=(R,P,x,y)=>{const I=P.i,J=P.j;for(let k=0;k<4;k++){const X=x+I[k],Y=y+J[k];if(X<0||X>=W||Y<0||Y>=H||(R[Y]>>X&1))return false}return true};
-function pfLock(R,t){const ck=R[H-4]+','+R[H-3]+','+R[H-2]+','+R[H-1]+t,C=PF.lc;if(C.has(ck))return C.get(ck);if(C.size>30000)C.clear();
- const y0=H-8,nr=t==='O'?1:4,vis=new Uint8Array(4*20*H),q=[],out=[],seen=new Set(),kt=t==='I'?KI:KJ,pp=PX[t];
- const add=(r,x,y)=>{if(y<y0)return;const k=(r*20+x+5)*H+y;if(!vis[k]){vis[k]=1;q.push(r,x,y)}};
+/* 置ける場所の列挙(最適化版): 数値の鍵・使い回しの配列で、メモリ確保と文字列生成を減らす。結果の並びは従来と同じ */
+const PVIS=new Int32Array(4*20*H),PQ=new Int32Array(3*4*20*H+8);let PST=0;
+const KN=t=>{const o=[];for(let r=0;r<4;r++)for(let n=0;n<4;n++)o[r*4+n]=(t==='I'?KI:KJ)[''+r+n]||null;return o},KNI=KN('I'),KNJ=KN('J'),TI={I:0,O:1,T:2,S:3,Z:4,J:5,L:6};
+function pfLock(R,t){const ck=(((R[H-4]*1024+R[H-3])*1024+R[H-2])*1024+R[H-1])*8+TI[t],C=PF.lc;let hit=C.get(ck);if(hit!==undefined)return hit;if(C.size>30000)C.clear();
+ const y0=H-8,nr=t==='O'?1:4,out=[],seen=new Set(),kt=t==='I'?KNI:KNJ,pp=PX[t],stamp=++PST;let qn=0;
+ const add=(r,x,y)=>{if(y<y0)return;const k=(r*20+x+5)*H+y;if(PVIS[k]!==stamp){PVIS[k]=stamp;PQ[qn++]=r;PQ[qn++]=x;PQ[qn++]=y}};
  for(let r=0;r<nr;r++)for(let x=-3;x<W;x++)if(pfF(R,pp[r],x,y0))add(r,x,y0);
- while(q.length){const y=q.pop(),x=q.pop(),r=q.pop(),P=pp[r];
-  if(!pfF(R,P,x,y+1)){const cs=[];let s=0;for(let k=0;k<4;k++){cs.push([x+P.i[k],y+P.j[k]]);s=s*400+(x+P.i[k])*22+y+P.j[k]}const key=cs.map(a=>a[0]*30+a[1]).sort((a,b)=>a-b).join();if(!seen.has(key)){seen.add(key);out.push(cs)}}
+ while(qn){const y=PQ[--qn],x=PQ[--qn],r=PQ[--qn],P=pp[r],I=P.i,J=P.j;
+  if(!pfF(R,P,x,y+1)){let a=(y+J[0]-y0)*10+x+I[0],b=(y+J[1]-y0)*10+x+I[1],c=(y+J[2]-y0)*10+x+I[2],d=(y+J[3]-y0)*10+x+I[3],z;
+   if(a>b){z=a;a=b;b=z}if(c>d){z=c;c=d;d=z}if(a>c){z=a;a=c;c=z}if(b>d){z=b;b=d;d=z}if(b>c){z=b;b=c;c=z}
+   const key=((a*80+b)*80+c)*80+d;if(!seen.has(key)){seen.add(key);out.push([[x+I[0],y+J[0]],[x+I[1],y+J[1]],[x+I[2],y+J[2]],[x+I[3],y+J[3]]])}}
   if(pfF(R,P,x-1,y))add(r,x-1,y);if(pfF(R,P,x+1,y))add(r,x+1,y);if(pfF(R,P,x,y+1))add(r,x,y+1);
-  if(t!=='O')for(const d of[1,3]){const n=(r+d)%4,K=kt[''+r+n];for(let k=0;k<5;k++){const a=K[k][0],c=K[k][1];if(pfF(R,pp[n],x+a,y-c)){add(n,x+a,y-c);break}}}}
+  if(t!=='O')for(let d=1;d<4;d+=2){const n=(r+d)%4,K=kt[r*4+n];for(let k=0;k<5;k++){const a=K[k][0],c=K[k][1];if(pfF(R,pp[n],x+a,y-c)){add(n,x+a,y-c);break}}}}
  C.set(ck,out);return out}
 const pfPut=(R,cs)=>{let n=R.slice();cs.forEach(([x,y])=>n[y]|=1<<x);n=n.filter(v=>v!==1023);while(n.length<H)n.unshift(0);return n};
 let PFPAR=1;/* 1: 閉じた領域が4の倍数でない形を即捨てる(速いが、ライン消去で開く領域の解を捨てることがある)。0: 捨てない(遅いが正確) */
@@ -527,12 +535,13 @@ function pfAllowed(seq){const b0=G.q.length%7,u=seq.length-1,s=u>=b0?b0+7*Math.f
 let PFSTAGE=0;/* 2回目のフィルでは、残るミノ(次の3回目へ繰り越すミノ)が T>O>I>JL>SZ の順に良い手を選ぶ */
 function pcFill(b,gh,cur,hold,q){
  const key=b.slice(-8).map(r=>r.map(x=>x?1:0).join('')).join('')+gh+cur+hold+q.join('')+PFSTAGE+PFPAR;
- if(PF.rk===key)return PF.rr;if(PF.m.size>400000)PF.m.clear();PF.n=0;PF.ab=0;
+ if(PF.rk===key)return PF.rr;if(PF.m.size>400000)PF.m.clear();PF.n=0;PF.ab=0;PF.dl=Date.now()+PFTL;/* 探索の持ち時間(ms)。超えたら打ち切り */
  const WTM=PFSTAGE===2?{T:.9,O:.7,I:.5,J:.3,L:.3,S:.1,Z:.1,'-':.3}:null,MW=WTM?.9:0,seq=[cur,...q],R0=b.map(r=>r.reduce((a,v,x)=>a|(v?1<<x:0),0)),cnt=R=>R.reduce((a,v)=>{for(;v;v&=v-1)a++;return a},0),n0=cnt(R0);
+ let AL=[],ak='',sfx=[];const reseq=()=>{/* 先読みの先の候補・鍵用の文字列は、ミノ列が変わった時だけ作り直す(探索の各ステップで毎回作らない) */AL=pfAllowed(seq);ak=AL.join('')+(((seq.length-1-G.q.length%7)%7)+7)%7;sfx=[];for(let i=0;i<=seq.length;i++)sfx[i]=seq.slice(i).join('')};reseq();
  let top=0;while(top<H&&!R0[top])top++;let rw=H-top;{/* 連パフェは常に4ライン(10ミノ)。積み上がりが2段でも、このパフェで置いたミノ数と消した段数から、残りの目標段数を数える */const k=(G.pcs||0)-(G.pcAt||0),d=4*k-n0;if(d>=0&&d%10===0)rw=Math.max(1,Math.min(4,4-d/10))}let left=1;while((n0+4*left)%10||n0+4*left<10*rw)left++;/* 全消しに必要なミノ数 */
- const unk=(R,i,h,d)=>{/* ネクストを使い切った後も、ホールド中のミノは置ける(最後の1ミノがホールドのミノ) */if(h){let hb=0;for(const cs of pfLock(R,h)){const nb=pfPut(R,cs);if(!pfOk(nb))continue;const v=go(nb,i,'',d+1);if(v>hb)hb=v;if(hb>=2)break}if(hb>=2)return hb}const U=pfAllowed(seq);if(U.length>3)return 1;let mn=9,any=0;for(const t of U){seq.push(t);const v=go(R,i,h,d);seq.pop();if(PF.ab)return 0;if(v>0)any=1;if(v<mn)mn=v}return mn>=2?mn:any?1:0};
-  const go=(R,i,h,d)=>{if(!cnt(R))return WTM?2+WTM[h||'-']:2;if(d>=left)return 0;if(i>=seq.length)return unk(R,i,h,d);if(PF.ab)return 0;if(++PF.n>PF.lim){PF.ab=1;return 0}
-  const k=R.slice(H-4).join()+'|'+seq.slice(i).join('')+'|'+(h||'-')+(left-d)+(WTM?'w':'')+'|'+pfAllowed(seq).join('')+(((seq.length-1-G.q.length%7)%7)+7)%7+'|p'+PFPAR,mm=PF.m;if(mm.has(k))return mm.get(k);mm.set(k,0);let best=0;
+ const unk=(R,i,h,d)=>{/* ネクストを使い切った後も、ホールド中のミノは置ける(最後の1ミノがホールドのミノ) */if(h){let hb=0;for(const cs of pfLock(R,h)){const nb=pfPut(R,cs);if(!pfOk(nb))continue;const v=go(nb,i,'',d+1);if(v>hb)hb=v;if(hb>=2)break}if(hb>=2)return hb}const U=AL;if(U.length>3)return 1;let mn=9,any=0;for(const t of U){seq.push(t);reseq();const v=go(R,i,h,d);seq.pop();reseq();if(PF.ab)return 0;if(v>0)any=1;if(v<mn)mn=v}return mn>=2?mn:any?1:0};
+  const go=(R,i,h,d)=>{if(!cnt(R))return WTM?2+WTM[h||'-']:2;if(d>=left)return 0;if(i>=seq.length)return unk(R,i,h,d);if(PF.ab)return 0;if(++PF.n>PF.lim||((PF.n&255)===0&&Date.now()>PF.dl)){PF.ab=1;return 0}
+  const k=R[H-4]+','+R[H-3]+','+R[H-2]+','+R[H-1]+'|'+sfx[i]+'|'+(h||'-')+(left-d)+(WTM?'w':'')+'|'+ak+'|p'+PFPAR,mm=PF.m;if(mm.has(k))return mm.get(k);mm.set(k,0);let best=0;
   const tr=(t,ni,nh)=>{for(const cs of pfLock(R,t)){const nb=pfPut(R,cs);if(!pfOk(nb))continue;const v=go(nb,ni,nh,d+1);if(v>best)best=v;if(best>=2+MW)return}};
   tr(seq[i],i+1,h);if(best<2+MW&&h)tr(h,i+1,seq[i]);else if(best<2+MW&&!h&&i+1<seq.length)tr(seq[i+1],i+2,seq[i]);
   if(PF.ab)mm.delete(k);else mm.set(k,best);return best};
@@ -543,9 +552,9 @@ function pcFill(b,gh,cur,hold,q){
  root(cur,1,hold,0);if(bv<2+MW&&hold)root(hold,1,cur,1);else if(bv<2+MW&&!hold&&q.length)root(q[0],2,cur,1);
  /* 先読み不足で未確定のときは、最初に見つかった手ではなく「次に来るミノが何でも全消しできる確率」が最も高い手を選ぶ */
  if(bv===1&&cands.length>1&&!PF.ab){const ab0=PF.ab,lim0=PF.lim,t0=Date.now();PF.lim=4000;let bs=-1;
-  for(const c of cands.slice(0,8)){if(bs>=0&&Date.now()-t0>300)break;let sc=0;for(const t of pfAllowed(seq)){seq.push(t);PF.n=0;PF.ab=0;const v=go(c.nb,c.ni,c.nh,1);seq.pop();sc+=v===2?1:v===1?.3:0}if(sc>bs){bs=sc;first=c}}
+  for(const c of cands.slice(0,8)){if(bs>=0&&Date.now()-t0>300)break;let sc=0;for(const t of AL){seq.push(t);reseq();PF.n=0;PF.ab=0;const v=go(c.nb,c.ni,c.nh,1);seq.pop();reseq();sc+=v===2?1:v===1?.3:0}if(sc>bs){bs=sc;first=c}}
   PF.lim=lim0;PF.ab=ab0}
- const res={v:Math.floor(bv),steps:[],hd:0,ab:PF.ab};
+ const res={v:Math.floor(bv),steps:[],hd:0,ab:PF.ab};if(!PF.ab)PF.dl=Math.max(PF.dl,Date.now()+700);
  if(first){res.hd=first.hd;res.steps.push({t:first.t,cells:first.cs});
   let mp=Array.from({length:H},(_,y)=>y),[R,m1]=putM(R0,mp,first.cs),i=first.ni,h=first.nh,d=1;mp=m1;
   while(cnt(R)&&d<left&&i<seq.length){const op=[[seq[i],i+1,h]];if(h)op.push([h,i+1,seq[i]]);else if(i+1<seq.length)op.push([seq[i+1],i+2,seq[i]]);
